@@ -3,7 +3,7 @@
     <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form" auto-complete="on" label-position="left">
 
       <div class="title-container">
-        <h3 class="title">Login Form</h3>
+        <h3 class="title">登录</h3>
       </div>
 
       <el-form-item prop="username">
@@ -179,9 +179,12 @@ $light_gray:#eee;
 
 .login-container {
   min-height: 100%;
-  width: 100%;
-  background-color: $bg;
   overflow: hidden;
+  background: url(~@/assets/bg.jpeg);
+  width: 100%;
+  background-size: cover;
+  background-position: center;
+  position: relative;
 
   .login-form {
     position: relative;
