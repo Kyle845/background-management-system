@@ -27,7 +27,7 @@
           width="width">
           <template slot-scope="{row,$index}">
             <el-button type="warning" icon="el-icon-edit" size="mini" @click="updateTradeMark(row)">修改</el-button>
-            <el-button type="danger" icon="el-icon-delete" size="mini">删除</el-button>
+            <el-button type="danger" icon="el-icon-delete" size="mini" @click="deleteTradeMark(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -38,23 +38,23 @@
           layout="prev,pager,next,jumper,->,total,sizes"
           :total="total"
           :page-size="limit"
-          @current-change="getPageList(page)"
-          @size-change="handleSizeChange(limit)"
+          @current-change="getPageList"
+          @size-change="handleSizeChange"
           :pager-count="7">
       </el-pagination>
       <el-dialog :title="tmForm.id?'修改品牌':'添加品牌'" :visible.sync="dialogFormVisible">
-            <el-form style="width:80%" :model="tmForm">
-              <el-form-item label="品牌名称" label-width="100px">
+            <el-form style="width:80%" :model="tmForm" :rules="rules" ref="ruleForm">
+              <el-form-item label="品牌名称" label-width="100px" prop="tmName">
                 <el-input autocomplete="off" v-model="tmForm.tmName"></el-input>
               </el-form-item>
-              <el-form-item label="品牌LOGO" label-width="100px">
+              <el-form-item label="品牌LOGO" label-width="100px" prop="logoUrl">
                 <el-upload
                   class="avatar-uploader"
                   action="/dev-api/admin/product/fileUpload"
                   :show-file-list="false"
                   :on-success="handleAvatarSuccess"
                   :before-upload="beforeAvatarUpload">
-                  <img v-if="tmForm.logoUrl" :src="tmForm.logoUrl" class="avatar">
+                  <img v-if="tmForm.logoUrl" :src="tmForm.logoUrl" class="avatar" />
                   <i v-else class="el-icon-plus avatar-uploader-icon"></i>
                   <div slot="tip" class="el-upload__tip">只能上传jpg/png文件，且不超过500kb</div>
                 </el-upload>
@@ -71,15 +71,33 @@
 export default {
   name: 'TradeMark',
   data(){
+    var validateTmName = (rule, value, callback) => {
+      //自定义校验规则
+      if (value.length < 2 || value.length > 10) {
+        callback(new Error("品牌名称2-10位"));
+      } else {
+        callback();
+      }
+    };
     return {
       page:1,
       limit:3,
       total:0,
       list:[],
       dialogFormVisible:false,
-      tmForm:{
-        tmName:'',
-        logoUrl:''
+      tmForm: {
+        tmName: "",
+        logoUrl: "",
+      },
+      rules:{
+        tmName: [
+            { required: true, message: '请输入品牌名称', trigger: 'blur' },
+            // { min: 2, max: 10, message: '长度在 2 到 10 个字符', trigger: 'change' }
+            { validator: validateTmName, trigger: "change" } 
+          ],
+        logoUrl: [
+            { required: true, message: '请选择品牌的图片' }
+          ],       
       }
     }
   },
@@ -88,11 +106,11 @@ export default {
   },
   methods: {
     async getPageList(pager = 1) {
+      console.log('success')
       this.page = pager;
       const {page,limit} = this;
       let result = await this.$API.trademark.reqTradeMarkList(page,limit);
       if (result.code == 200) {
-        console.log('success')
         this.total = result.data.total;
         this.list = result.data.records;
       }
@@ -105,7 +123,7 @@ export default {
         this.dialogFormVisible = true;
         this.tmForm = {tmName:'',logoUrl:''}
     },
-    updateTradeMark() {
+    updateTradeMark(row) {
       this.dialogFormVisible = true;
       this.tmForm = {...row};
     },
@@ -124,16 +142,57 @@ export default {
         }
         return isJPG && isLt2M;
       },
-      async addOrUpdateTradeMark(){
+       async addOrUpdateTradeMark(){
+        this.$refs.ruleForm.validate(async (success) => {
+        //如果全部字段符合条件
+        if (success) {
           this.dialogFormVisible = false;
-          let result = await this.$API.trademark.reqAddOrUpdateTradeMark(this.tmForm);
+          //发请求（添加品牌|修改品牌）
+          let result = await this.$API.trademark.reqAddOrUpdateTradeMark(
+            this.tmForm
+          );
           if (result.code == 200) {
+            //弹出信息:添加品牌成功、修改品牌成功
             this.$message({
-              type:'success',
-              message:this.tmForm.id?'修改品牌成功':'添加品牌成功'
-            })
-            this.getPageList(this.tmForm.id?this.page:1);
+              type: "success",
+              message: this.tmForm.id ? "修改品牌成功" : "添加品牌成功",
+            });
+            //添加或者修改品牌成功以后，需要再次获取品牌列表进行展示
+            //如果添加品牌： 停留在第一页，修改品牌应该留在当前页面
+            this.getPageList(this.tmForm.id ? this.page : 1);
           }
+        } else {
+          console.log("error submit!!");
+          return false;
+        }
+      });
+      },
+      async deleteTradeMark(row) {
+        // let result = await this.$API.trademark.reqDeleteTradeMark(row.id);
+        //   console.log('hhh',result)
+        this.$confirm(`你确定删除${row.tmName}?`, '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(async () => {
+          let result = await this.$API.trademark.reqDeleteTradeMark(row.id);
+          console.log('hhh',result)
+          if (result.code == 200) {
+            //弹出信息:添加品牌成功、修改品牌成功
+            this.$message({
+              type: "success",
+              message: "删除成功！",
+            });
+            //添加或者修改品牌成功以后，需要再次获取品牌列表进行展示
+            //如果添加品牌： 停留在第一页，修改品牌应该留在当前页面
+            this.getPageList(this.list.length > 1?this.page:this.page - 1);
+          }
+        }).catch(() => {
+          this.$message({
+            type: 'info',
+            message: '已取消删除'
+          });          
+        });
       } 
   },
 }
