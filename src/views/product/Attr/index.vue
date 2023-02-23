@@ -1,11 +1,16 @@
 <template lang="">
     <div>
         <el-card style="margin:20px 0px">
-          <CategorySelect @getCategoryId="getCategoryId"></CategorySelect>
+          <CategorySelect @getCategoryId="getCategoryId" :show="!isShowTable"></CategorySelect>
         </el-card>
         <el-card>
           <div v-show="isShowTable">
-          <el-button type="primary" icon="el-icon-plus" :disabled="!category3Id" @click="addAttr">添加属性</el-button>
+          <el-button 
+            type="primary" 
+            icon="el-icon-plus" 
+            :disabled="!category3Id" 
+            @click="addAttr">
+            添加属性</el-button>
           <el-table style="width:100%" :data="attrList" border>
                 <el-table-column
                     type="index"
@@ -14,7 +19,7 @@
                     align="center">
                 </el-table-column>
                 <el-table-column
-                    prop="prop"
+                    prop="attrName"
                     label="属性名称"
                     width="150">
                 </el-table-column>   
@@ -23,7 +28,12 @@
                     label="属性值列表"
                     width="width">
                     <template slot-scope="{row,$index}">
-                      <el-tag type="success" v-for="(attrValue,index) in row.attrValueList" :key="attrValue.id" style="margin:0px 20px">{{attrValue.valueName}}</el-tag>
+                      <el-tag 
+                        type="success" 
+                        v-for="(attrValue,index) in row.attrValueList" 
+                        :key="attrValue.id" 
+                        style="margin:0px 20px"
+                        >{{attrValue.valueName}}</el-tag>
                     </template>
                 </el-table-column> 
                 <el-table-column
@@ -31,21 +41,39 @@
                     label="操作"
                     width="150">
                     <template slot-scope="{row,$index}">
-                      <el-button type="warning" icon="el-icon-edit" size="mini" @click="updateAttr(row)"></el-button>
-                      <el-button type="danger" icon="el-icon-delete" size="mini"></el-button>
+                      <el-button 
+                        type="warning" 
+                        icon="el-icon-edit" 
+                        size="mini" 
+                        @click="updateAttr(row)"></el-button>
+                      <el-button 
+                        type="danger" 
+                        icon="el-icon-delete" 
+                        size="mini"></el-button>
                     </template>
                 </el-table-column>     
           </el-table>
         </div>
         <div v-show="!isShowTable">
-            <el-form :inline="true" ref="form" label-width="80px">
-                    <el-form-item label="属性名">
-                          <el-input placeholder="请输入属性名" v-model="attrInfo.attrName" ></el-input>
-                    </el-form-item>
+            <el-form :inline="true" 
+              ref="form" 
+              label-width="80px" 
+              :model="attrInfo">
+              <el-form-item label="属性名">
+              <el-input 
+              placeholder="请输入属性名" 
+              v-model="attrInfo.attrName" ></el-input>
+              </el-form-item>
             </el-form>
-            <el-button type="primary" icon="el-icon-plus" @click="addAttrValue" :disabled="!attrInfo.attrName">添加属性值</el-button>
+            <el-button 
+              type="primary" 
+              icon="el-icon-plus" 
+              @click="addAttrValue" 
+              :disabled="!attrInfo.attrName">添加属性值</el-button>
             <el-button @click="isShowTable=true">取消</el-button>
-            <el-table style="width:100%;margin:20px 0px" border :data="attrInfo.attrValueList">
+            <el-table 
+              style="width:100%;margin:20px 0px" 
+                border :data="attrInfo.attrValueList">
               <el-table-column
                     align="center"
                     type="index"
@@ -57,8 +85,19 @@
                     label="属性值名称"
                     width="width">
                     <template slot-scope="{row,$index}">
-                        <el-input v-model="row.valueName" placeholder="请输入属性值名称" size="mini" v-if="row.flag" @blur="toLook(row)" @keyup.native.enter="toLook(row)"></el-input>
-                        <span v-else @click="row.flag=true" style="display:block">{{row.valueName}}</span>
+                        <el-input 
+                        v-model="row.valueName" 
+                        placeholder="请输入属性值名称" 
+                        size="mini" 
+                        v-if="row.flag" 
+                        @blur="toLook(row)" 
+                        @keyup.native.enter="toLook(row)" 
+                        :ref="$index"></el-input>
+                        <span 
+                        v-else 
+                        @click="toEdit(row,$index)" 
+                        style="display:block">
+                        {{row.valueName}}</span>
                     </template>
                 </el-table-column>
                 <el-table-column
@@ -66,18 +105,21 @@
                     label="操作"
                     width="width">
                     <template slot-scope="{row,$index}">
-                        <el-button type="danger" icon="el-icon-delete" size="mini"></el-button>
+                        <el-popconfirm :title="`确定删除${row.valueName}吗？`" @onConfirm="deleteAttrValue">
+                          <el-button type="danger" icon="el-icon-delete" size="mini" slot="reference"></el-button>
+                        </el-popconfirm>
                     </template>
                 </el-table-column>    
             </el-table>
-            <el-button type="primary">保存</el-button>
+            <el-button type="primary" @click="addOrUpdateAttr" :disabled="attrInfo.attrValueList.length < 1">保存</el-button>
             <el-button @click="isShowTable = true">取消</el-button>
         </div>
         </el-card>
     </div>
 </template>
 <script>
-import { cloneDeep } from '@babel/types';
+import { reqAddOrUpdateAttr } from '@/api/product/attr';
+import { cloneDeep, cloneNode } from '@babel/types';
 export default {
   name: 'Attr',
   data(){
@@ -143,7 +185,10 @@ export default {
     },
     updateAttr(row){
       this.isShowTable = false;
-      this.attrInfo = cloneDeep(row)
+      this.attrInfo = cloneDeep(row);
+      this.attrInfo.attrValueList.forEach((item) => {
+        this.$set(item,"flag",false)
+      })
     },
     toLook(row){
       if (row.valueName.trim()=='') {
@@ -157,6 +202,32 @@ export default {
       })
       if (isRepeat) return;
       row.flag = false;
+    },
+    toEdit(row,index){
+      row.flag = true;
+      this.$nextTick(() => {
+        this.$refs[index].focus();
+      })
+    },
+    deleteAttrValue(index){
+      this.attrInfo.attrValueList.splice(index,1)
+      console.log('delete')
+    },
+    async addOrUpdateAttr() {
+      this.attrInfo.attrValueList = this.attrInfo.attrValueList.filter(item => {
+        if (item.valueName != '') {
+          delete item.flag;
+          return true;
+        }
+      })
+      try {
+        await this.$API.attr.reqAddOrUpdateAttr(this.attrInfo);
+        this.isShowTable = true;
+        this.$message({type:'success',message:'保存成功'});
+        this.getAttrList();
+      } catch (error) {
+
+      }
     }
   },
 }
