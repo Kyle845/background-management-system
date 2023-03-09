@@ -185,7 +185,7 @@ export default {
     },
     updateAttr(row){
       this.isShowTable = false;
-      this.attrInfo = cloneDeep(row);
+      this.attrInfo = row;
       this.attrInfo.attrValueList.forEach((item) => {
         this.$set(item,"flag",false)
       })
